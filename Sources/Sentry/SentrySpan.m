@@ -57,9 +57,11 @@ SentrySpan ()
 
 - (void)setDataValue:(nullable id)value forKey:(NSString *)key
 {
-    @synchronized(_data) {
+    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
+    dispatch_barrier_sync(queue, ^{
         [_data setValue:value forKey:key];
-    }
+    });
+
 }
 
 - (void)setExtraValue:(nullable id)value forKey:(NSString *)key
@@ -83,9 +85,10 @@ SentrySpan ()
 
 - (void)setTagValue:(NSString *)value forKey:(NSString *)key
 {
-    @synchronized(_tags) {
+    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
+    dispatch_barrier_sync(queue, ^{
         [_tags setValue:value forKey:key];
-    }
+    });
 }
 
 - (void)removeTagForKey:(NSString *)key
@@ -153,19 +156,17 @@ SentrySpan ()
     [mutableDictionary setValue:@(self.startTimestamp.timeIntervalSince1970)
                          forKey:@"start_timestamp"];
 
-    @synchronized(_data) {
+    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
+    dispatch_barrier_sync(queue, ^{
         if (_data.count > 0) {
             mutableDictionary[@"data"] = [_data.copy sentry_sanitize];
         }
-    }
-
-    @synchronized(_tags) {
         if (_tags.count > 0) {
             NSMutableDictionary *tags = _context.tags.mutableCopy;
             [tags addEntriesFromDictionary:_tags.copy];
             mutableDictionary[@"tags"] = tags;
         }
-    }
+    });
 
     return mutableDictionary;
 }

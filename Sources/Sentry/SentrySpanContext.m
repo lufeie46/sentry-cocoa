@@ -82,12 +82,12 @@ SentrySpanContext () {
         @"op" : self.operation
     }
                                                  .mutableCopy;
-
-    @synchronized(_tags) {
+    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
+    dispatch_barrier_sync(queue, ^{
         if (_tags.count > 0) {
             mutabledictionary[@"tags"] = _tags.copy;
         }
-    }
+    });
 
     // Since we guard for 'undecided', we'll
     // either send it if it's 'true' or 'false'.
