@@ -82,8 +82,7 @@ SentrySpanContext () {
         @"op" : self.operation
     }
                                                  .mutableCopy;
-    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
-    dispatch_barrier_sync(queue, ^{
+    dispatch_barrier_sync([self operationQueue], ^{
         if (_tags.count > 0) {
             mutabledictionary[@"tags"] = _tags.copy;
         }
@@ -109,6 +108,16 @@ SentrySpanContext () {
 
     return mutabledictionary;
 }
+
+- (dispatch_queue_t)operationQueue {
+    static dispatch_queue_t queue = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.2.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
+    });
+     return queue;
+}
+
 @end
 
 NS_ASSUME_NONNULL_END

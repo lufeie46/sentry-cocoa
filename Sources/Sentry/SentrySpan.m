@@ -57,8 +57,7 @@ SentrySpan ()
 
 - (void)setDataValue:(nullable id)value forKey:(NSString *)key
 {
-    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
-    dispatch_barrier_sync(queue, ^{
+    dispatch_barrier_sync([self operationQueue], ^{
         [_data setValue:value forKey:key];
     });
 
@@ -85,8 +84,7 @@ SentrySpan ()
 
 - (void)setTagValue:(NSString *)value forKey:(NSString *)key
 {
-    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
-    dispatch_barrier_sync(queue, ^{
+    dispatch_barrier_sync([self operationQueue], ^{
         [_tags setValue:value forKey:key];
     });
 }
@@ -156,8 +154,7 @@ SentrySpan ()
     [mutableDictionary setValue:@(self.startTimestamp.timeIntervalSince1970)
                          forKey:@"start_timestamp"];
 
-    dispatch_queue_t queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
-    dispatch_barrier_sync(queue, ^{
+    dispatch_barrier_sync([self operationQueue], ^{
         if (_data.count > 0) {
             mutableDictionary[@"data"] = [_data.copy sentry_sanitize];
         }
@@ -169,6 +166,15 @@ SentrySpan ()
     });
 
     return mutableDictionary;
+}
+
+- (dispatch_queue_t)operationQueue {
+    static dispatch_queue_t queue = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
+    });
+     return queue;
 }
 
 @end
