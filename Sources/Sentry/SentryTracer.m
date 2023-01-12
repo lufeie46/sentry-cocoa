@@ -85,6 +85,15 @@ static BOOL appStartMeasurementRead;
     }
 }
 
+- (dispatch_queue_t)operationQueue {
+    static dispatch_queue_t queue = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.sentry.SQB.3", DISPATCH_QUEUE_CONCURRENT);
+    });
+     return queue;
+}
+
 - (instancetype)initWithTransactionContext:(SentryTransactionContext *)transactionContext
                                        hub:(nullable SentryHub *)hub
 {
@@ -384,15 +393,19 @@ static BOOL appStartMeasurementRead;
 
 - (void)setMeasurement:(NSString *)name value:(NSNumber *)value
 {
-    SentryMeasurementValue *measurement = [[SentryMeasurementValue alloc] initWithValue:value];
-    _measurements[name] = measurement;
+    dispatch_barrier_sync([self operationQueue], ^{
+        SentryMeasurementValue *measurement = [[SentryMeasurementValue alloc] initWithValue:value];
+        _measurements[name] = measurement;
+    });
 }
 
 - (void)setMeasurement:(NSString *)name value:(NSNumber *)value unit:(SentryMeasurementUnit *)unit
 {
-    SentryMeasurementValue *measurement = [[SentryMeasurementValue alloc] initWithValue:value
-                                                                                   unit:unit];
-    _measurements[name] = measurement;
+    dispatch_barrier_sync([self operationQueue], ^{
+        SentryMeasurementValue *measurement = [[SentryMeasurementValue alloc] initWithValue:value
+                                                                                       unit:unit];
+        _measurements[name] = measurement;
+    });
 }
 
 - (SentryTraceHeader *)toTraceHeader
