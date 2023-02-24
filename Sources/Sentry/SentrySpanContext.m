@@ -55,22 +55,24 @@ SentrySpanContext () {
 
 - (NSDictionary<NSString *, NSString *> *)tags
 {
-    @synchronized(_tags) {
-        return _tags.copy;
-    }
+    __block NSDictionary *tags;
+    dispatch_barrier_sync([self operationQueue], ^{
+        tags = _tags.copy;
+    });
+    return tags;
 }
 - (void)setTagValue:(NSString *)value forKey:(NSString *)key
 {
-    @synchronized(_tags) {
+    dispatch_barrier_sync([self operationQueue], ^{
         [_tags setValue:value forKey:key];
-    }
+    });
 }
 
 - (void)removeTagForKey:(NSString *)key
 {
-    @synchronized(_tags) {
+    dispatch_barrier_sync([self operationQueue], ^{
         [_tags removeObjectForKey:key];
-    }
+    });
 }
 
 - (NSDictionary<NSString *, id> *)serialize

@@ -314,13 +314,13 @@ static BOOL appStartMeasurementRead;
 - (SentryTraceContext *)traceContext
 {
     if (_traceContext == nil) {
-        @synchronized(self) {
+        dispatch_barrier_sync([self operationQueue], ^{
             if (_traceContext == nil) {
                 _traceContext = [[SentryTraceContext alloc] initWithTracer:self
                                                                      scope:_hub.scope
                                                                    options:SentrySDK.options];
             }
-        }
+        });
     }
     return _traceContext;
 }
@@ -336,16 +336,20 @@ static BOOL appStartMeasurementRead;
 
 - (nullable NSDictionary<NSString *, id> *)data
 {
-    @synchronized(_data) {
-        return [_data copy];
-    }
+    __block NSDictionary *data;
+    dispatch_barrier_sync([self operationQueue], ^{
+        data = _data.copy;
+    });
+    return data;
 }
 
 - (NSDictionary<NSString *, id> *)tags
 {
-    @synchronized(_tags) {
-        return [_tags copy];
-    }
+    __block NSDictionary *tags;
+    dispatch_barrier_sync([self operationQueue], ^{
+        tags = _tags.copy;
+    });
+    return tags;
 }
 
 - (BOOL)isFinished
@@ -360,9 +364,9 @@ static BOOL appStartMeasurementRead;
 
 - (void)setDataValue:(nullable id)value forKey:(NSString *)key
 {
-    @synchronized(_data) {
+    dispatch_barrier_sync([self operationQueue], ^{
         [_data setValue:value forKey:key];
-    }
+    });
 }
 
 - (void)setExtraValue:(nullable id)value forKey:(NSString *)key
@@ -372,23 +376,23 @@ static BOOL appStartMeasurementRead;
 
 - (void)removeDataForKey:(NSString *)key
 {
-    @synchronized(_data) {
+    dispatch_barrier_sync([self operationQueue], ^{
         [_data removeObjectForKey:key];
-    }
+    });
 }
 
 - (void)setTagValue:(NSString *)value forKey:(NSString *)key
 {
-    @synchronized(_tags) {
+    dispatch_barrier_sync([self operationQueue], ^{
         [_tags setValue:value forKey:key];
-    }
+    });
 }
 
 - (void)removeTagForKey:(NSString *)key
 {
-    @synchronized(_tags) {
+    dispatch_barrier_sync([self operationQueue], ^{
         [_tags removeObjectForKey:key];
-    }
+    });
 }
 
 - (void)setMeasurement:(NSString *)name value:(NSNumber *)value
