@@ -759,30 +759,33 @@ static BOOL appStartMeasurementRead;
 
 - (NSDictionary *)serialize
 {
-    NSMutableDictionary<NSString *, id> *mutableDictionary =
+    __block NSMutableDictionary<NSString *, id> *mutableDictionary =
         [[NSMutableDictionary alloc] initWithDictionary:[_rootSpan serialize]];
 
-    @synchronized(_data) {
+    dispatch_barrier_sync([self operationQueue], ^{
         if (_data.count > 0) {
             NSMutableDictionary *data = _data.mutableCopy;
-            if (mutableDictionary[@"data"] != nil &&
-                [mutableDictionary[@"data"] isKindOfClass:NSDictionary.class]) {
-                [data addEntriesFromDictionary:mutableDictionary[@"data"]];
+            if (mutableDictionary){
+                if (mutableDictionary[@"data"] != nil &&
+                    [mutableDictionary[@"data"] isKindOfClass:NSDictionary.class]) {
+                    [data addEntriesFromDictionary:mutableDictionary[@"data"]];
+                }
+                mutableDictionary[@"data"] = [data sentry_sanitize];
             }
-            mutableDictionary[@"data"] = [data sentry_sanitize];
         }
-    }
-
-    @synchronized(_tags) {
+    });
+    dispatch_barrier_sync([self operationQueue], ^{
         if (_tags.count > 0) {
             NSMutableDictionary *tags = _tags.mutableCopy;
-            if (mutableDictionary[@"tags"] != nil &&
-                [mutableDictionary[@"tags"] isKindOfClass:NSDictionary.class]) {
-                [tags addEntriesFromDictionary:mutableDictionary[@"tags"]];
+            if (mutableDictionary){
+                if (mutableDictionary[@"tags"] != nil &&
+                    [mutableDictionary[@"tags"] isKindOfClass:NSDictionary.class]) {
+                    [tags addEntriesFromDictionary:mutableDictionary[@"tags"]];
+                }
+                mutableDictionary[@"tags"] = tags;
             }
-            mutableDictionary[@"tags"] = tags;
         }
-    }
+    });
 
     return mutableDictionary;
 }
