@@ -50,10 +50,10 @@ SentryPerformanceTracker () <SentryTracerDelegate>
                          nameSource:(SentryTransactionNameSource)source
                           operation:(NSString *)operation
 {
-    id<SentrySpan> activeSpan;
-    @synchronized(self.activeSpanStack) {
+    __block id<SentrySpan> activeSpan;
+    dispatch_barrier_sync([self operationQueue], ^{
         activeSpan = [self.activeSpanStack lastObject];
-    }
+    });
 
     __block id<SentrySpan> newSpan;
     if (activeSpan != nil) {
@@ -88,9 +88,9 @@ SentryPerformanceTracker () <SentryTracerDelegate>
     SentrySpanId *spanId = newSpan.context.spanId;
 
     if (spanId != nil) {
-        @synchronized(self.spans) {
+        dispatch_barrier_sync([self operationQueue], ^{
             self.spans[spanId] = newSpan;
-        }
+        });
     } else {
         SENTRY_LOG_ERROR(@"startSpanWithName:operation: spanId is nil.");
         return [SentrySpanId empty];
@@ -163,17 +163,19 @@ SentryPerformanceTracker () <SentryTracerDelegate>
 
 - (nullable SentrySpanId *)activeSpanId
 {
-    @synchronized(self.activeSpanStack) {
-        return [self.activeSpanStack lastObject].context.spanId;
-    }
+    __block SentrySpanId *spanId;
+    dispatch_barrier_sync([self operationQueue], ^{
+        spanId = [self.activeSpanStack lastObject].context.spanId;
+    });
+    return spanId;
 }
 
 - (BOOL)pushActiveSpan:(SentrySpanId *)spanId
 {
-    id<SentrySpan> toActiveSpan;
-    @synchronized(self.spans) {
+    __block id<SentrySpan> toActiveSpan;
+    dispatch_barrier_sync([self operationQueue], ^{
         toActiveSpan = self.spans[spanId];
-    }
+    });
 
     if (toActiveSpan == nil) {
         return NO;
@@ -187,9 +189,9 @@ SentryPerformanceTracker () <SentryTracerDelegate>
 
 - (void)popActiveSpan
 {
-    @synchronized(self.activeSpanStack) {
+    dispatch_barrier_sync([self operationQueue], ^{
         [self.activeSpanStack removeLastObject];
-    }
+    });
 }
 
 - (void)finishSpan:(SentrySpanId *)spanId
@@ -199,34 +201,49 @@ SentryPerformanceTracker () <SentryTracerDelegate>
 
 - (void)finishSpan:(SentrySpanId *)spanId withStatus:(SentrySpanStatus)status
 {
-    id<SentrySpan> spanTracker;
-    @synchronized(self.spans) {
+    __block id<SentrySpan> spanTracker;
+    dispatch_barrier_sync([self operationQueue], ^{
         spanTracker = self.spans[spanId];
         [self.spans removeObjectForKey:spanId];
-    }
+    });
 
     [spanTracker finishWithStatus:status];
 }
 
 - (BOOL)isSpanAlive:(SentrySpanId *)spanId
 {
-    @synchronized(self.spans) {
-        return self.spans[spanId] != nil;
-    }
+    __block BOOL alive;
+    dispatch_barrier_sync([self operationQueue], ^{
+        alive =(self.spans[spanId] != nil);
+    });
+    return alive;
 }
 
 - (nullable id<SentrySpan>)getSpan:(SentrySpanId *)spanId
 {
-    @synchronized(self.spans) {
-        return self.spans[spanId];
-    }
+    __block id<SentrySpan> span;
+    dispatch_barrier_sync([self operationQueue], ^{
+        span = self.spans[spanId];
+    });
+    return span;
 }
 
 - (nullable id<SentrySpan>)activeSpanForTracer:(SentryTracer *)tracer
 {
-    @synchronized(self.activeSpanStack) {
-        return [self.activeSpanStack lastObject];
-    }
+    __block id<SentrySpan> span;
+    dispatch_barrier_sync([self operationQueue], ^{
+        span = [self.activeSpanStack lastObject];
+    });
+    return span;
+}
+
+- (dispatch_queue_t)operationQueue {
+    static dispatch_queue_t queue = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.performancetracker.sentry.SQB", DISPATCH_QUEUE_CONCURRENT);
+    });
+     return queue;
 }
 
 @end
