@@ -53,7 +53,10 @@ SentrySubClassFinder ()
         NSMutableArray<NSString *> *classesToSwizzle = [NSMutableArray new];
         for (int i = 0; i < count; i++) {
             NSString *className = [NSString stringWithUTF8String:classes[i]];
-            Class class = NSClassFromString(className);
+            Class class;
+            if (![className containsString:@"."]) {
+                class = NSClassFromString(className);
+            }
             if ([self isClass:class subClassOf:viewControllerClass]) {
                 [classesToSwizzle addObject:className];
             }
